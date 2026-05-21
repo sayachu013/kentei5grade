@@ -607,22 +607,45 @@
 
             let choices = [currentQuestion.jp];
             
-            const primarySource = isReviewMode ? reviewList : wordData[currentUnitKey];
+            // --- 紛らわしさ極限カスタム ---
+            // 1. まず出題単語が本来どの単元（キー）に属しているかを特定
+            const originKey = Object.keys(wordData).find(key => 
+                wordData[key].some(item => item.en === currentQuestion.en)
+            ) || currentUnitKey;
+
+            // 2. その単元の全単語をベースにする
+            let basePool = wordData[originKey] || [];
+
+            // 3. 出題単語と「頭の2文字が同じ」または「文字数の差が±2以内」の紛らわしい単語を抽出
+            let visualMatches = basePool.filter(item => {
+                if (item.en === currentQuestion.en) return false; // 自分自身は除外
+                const sharePrefix = item.en.substring(0, 2).toLowerCase() === currentQuestion.en.substring(0, 2).toLowerCase();
+                const regularLength = Math.abs(item.en.length - currentQuestion.en.length) <= 2;
+                return sharePrefix || regularLength;
+            });
+
+            // シャッフルしてダミー候補（紛らわしい順）のリストを作成
+            visualMatches.sort(() => Math.random() - 0.5);
+            let dummyPool = visualMatches.concat(basePool.sort(() => Math.random() - 0.5));
+
+            // 4. 選択肢が4つになるまで詰め込む
             let attempts = 0;
-            while (choices.length < 4 && choices.length < primarySource.length && attempts < 100) {
-                let randomWord = primarySource[Math.floor(Math.random() * primarySource.length)].jp;
-                if (!choices.includes(randomWord)) choices.push(randomWord);
+            while (choices.length < 4 && attempts < dummyPool.length) {
+                let candidate = dummyPool[attempts].jp;
+                if (!choices.includes(candidate)) choices.push(candidate);
                 attempts++;
             }
-            
+
+            // 万が一足りない場合は全データから補填
             if (choices.length < 4) {
-                const allKeys = Object.keys(wordData);
-                while (choices.length < 4) {
-                    let randomKey = allKeys[Math.floor(Math.random() * allKeys.length)];
-                    let randomWord = wordData[randomKey][Math.floor(Math.random() * wordData[randomKey].length)].jp;
-                    if (!choices.includes(randomWord)) choices.push(randomWord);
+                const allWords = Object.values(wordData).flat();
+                allWords.sort(() => Math.random() - 0.5);
+                for (let item of allWords) {
+                    if (choices.length >= 4) break;
+                    if (!choices.includes(item.jp)) choices.push(item.jp);
                 }
             }
+            // --- カスタムここまで ---
             
             choices.sort(() => Math.random() - 0.5);
 
