@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>俊英館 英検5級特訓 - Stoic Master Ultimate</title>
+    <title>英検5級特訓 - Stoic Master Ultimate</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;700&display=swap" rel="stylesheet">
@@ -105,6 +105,7 @@
         .unit-btn.mode-test:hover { border-color: var(--danger); background: rgba(255, 71, 87, 0.05); }
         .unit-btn:hover::after { transform: translateX(3px); opacity: 1; }
 
+        /* バッジ表示用の汎用スタイル */
         .status-badges {
             display: flex;
             gap: 6px;
@@ -128,6 +129,7 @@
             border: 1px solid rgba(46, 213, 115, 0.3);
         }
 
+        /* テストクリア時の発光エフェクト */
         .unit-btn.cleared-test {
             border-color: var(--success) !important;
             animation: pulse-glow 2s infinite alternate;
@@ -138,6 +140,7 @@
             100% { box-shadow: 0 0 12px rgba(46, 213, 115, 0.4); border-color: var(--success); }
         }
 
+        /* 復習ボタン専用スタイル */
         .review-btn {
             background: #2e1015 !important;
             border: 1px solid var(--danger) !important;
@@ -159,11 +162,24 @@
         
         /* --- ANKI SCREEN --- */
         .anki-meaning { font-size: 1.8rem; color: var(--accent); margin-bottom: 50px; min-height: 40px; visibility: hidden; }
+        
+        /* 暗記モード専用ボタングループ */
+        .anki-btn-container {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
         .anki-action-btn {
-            width: 100%; background: var(--card); border: 2px solid #334155; color: var(--text);
+            flex: 1; background: var(--card); border: 2px solid #334155; color: var(--text);
             padding: 18px; border-radius: 12px; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; font-weight: bold;
         }
         .anki-action-btn:hover { border-color: var(--primary); background: #334155; }
+        
+        /* 覚えた・不安ボタン用スタイル */
+        .anki-btn-success { border-color: var(--success); color: var(--success); }
+        .anki-btn-success:hover { background: rgba(46, 213, 115, 0.15); border-color: var(--success); }
+        .anki-btn-danger { border-color: var(--danger); color: var(--danger); }
+        .anki-btn-danger:hover { background: rgba(255, 71, 87, 0.15); border-color: var(--danger); }
 
         /* --- TEST SCREEN --- */
         .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold; align-items: center; }
@@ -210,7 +226,7 @@
 
     <div id="home-screen" class="screen active">
         <h1>英検5級 <span>Stoic</span></h1>
-        <p class="subtitle">俊英館 単語特訓シリーズ</p>
+        <p class="subtitle">単語特訓シリーズ</p>
         
         <div class="mode-selector">
             <button class="mode-tab active" data-mode="anki" onclick="setMode('anki')">暗記モード</button>
@@ -228,11 +244,14 @@
         <div class="stats">
             <div class="mode-badge badge-anki">暗記モード</div>
             <div id="anki-unit-name" style="opacity: 0.6; font-size: 0.9rem;">PART</div>
-            <div id="anki-progress" class="progress-counter">残り 0 / 0 問</div>
+            <div id="anki-progress" class="progress-counter">残り 0 問</div>
         </div>
         <div id="anki-word" class="word-display">Word</div>
         <div id="anki-meaning" class="anki-meaning">意味</div>
-        <button id="anki-main-btn" class="anki-action-btn" onclick="handleAnkiAction()">答えを表示 (Space)</button>
+        
+        <div class="anki-btn-container" id="anki-controls">
+            <button id="anki-main-btn" class="anki-action-btn" onclick="handleAnkiShowAnswer()">答えを表示 (Space)</button>
+        </div>
     </div>
 
     <div id="challenge-screen" class="screen">
@@ -380,21 +399,26 @@
         let currentQuestion = null;
         let currentUnitKey = "";   
         
-        let clearedAnkiUnits = []; 
-        let clearedUnits = [];     
-        let reviewList = [];       
+        // 状態管理用オブジェクト
+        let clearedAnkiUnits = []; // 暗記モードでクリアした単元リスト
+        let clearedUnits = [];     // テストモードでクリアした単元リスト
+        let reviewList = [];       // 間違えた問題を保存する復習リスト
         let isReviewMode = false;  
 
+        // 暗記用状態
         let isMeaningRevealed = false;
 
+        // テスト用状態
         let combo = 0;
         let timer = null;
         const TIME_LIMIT = 5000;
 
+        // ホーム画面のボタン生成・更新関数
         function renderUnitButtons() {
             const unitContainer = document.getElementById('unit-buttons');
             unitContainer.innerHTML = ""; 
 
+            // 1. 復習リストが1件以上あれば最上部に表示
             if (reviewList.length > 0) {
                 const rBtn = document.createElement('button');
                 rBtn.className = 'unit-btn review-btn';
@@ -403,17 +427,21 @@
                 unitContainer.appendChild(rBtn);
             }
 
+            // 2. 通常の単元ボタンを描写
             Object.keys(wordData).forEach(key => {
                 const btn = document.createElement('button');
                 btn.id = `btn-${key}`;
                 btn.innerText = key;
                 
                 let classes = `unit-btn mode-${selectedMode}`;
+                
+                // テストモードクリア時は発光エフェクト
                 if (clearedUnits.includes(key)) {
                     classes += ' cleared-test'; 
                 }
                 btn.className = classes;
 
+                // バッジ格納エリアの作成
                 const badgeContainer = document.createElement('div');
                 badgeContainer.className = 'status-badges';
 
@@ -436,6 +464,7 @@
             });
         }
 
+        // モード変更
         function setMode(mode) {
             selectedMode = mode;
             document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
@@ -443,6 +472,7 @@
             renderUnitButtons();
         }
 
+        // 配列シャッフル関数
         function shuffle(array) {
             let shuffled = [...array];
             for (let i = shuffled.length - 1; i > 0; i--) {
@@ -452,6 +482,7 @@
             return shuffled;
         }
 
+        // セッション開始
         function startSession(key) {
             isReviewMode = false;
             currentUnitKey = key;
@@ -473,6 +504,7 @@
             }
         }
 
+        // 復習セッション開始
         function startReviewSession() {
             isReviewMode = true;
             currentUnitKey = "REVIEW_LIST";
@@ -488,6 +520,7 @@
             nextTestQuestion();
         }
 
+        // 間違えた問題を復習リストに追加（重複なし）
         function addToReviewList(wordObj) {
             const exists = reviewList.some(item => item.en === wordObj.en);
             if (!exists) {
@@ -496,9 +529,10 @@
         }
 
         /* ==========================================
-           ▼ 暗記モード ロジック
+           ▼ 暗記モード ロジック（修正・拡張部分）
         ========================================== */
         function initAnkiQuestion() {
+            // プールが空＝すべての問題で「覚えた」を選択できた場合のみクリア
             if (currentPool.length === 0) {
                 if (!clearedAnkiUnits.includes(currentUnitKey)) {
                     clearedAnkiUnits.push(currentUnitKey); 
@@ -507,10 +541,11 @@
                 return;
             }
 
-            document.getElementById('anki-progress').innerText = `残り ${currentPool.length} / ${originalPoolLength} 問`;
+            document.getElementById('anki-progress').innerText = `残り ${currentPool.length} 問`;
 
             isMeaningRevealed = false;
-            currentQuestion = currentPool.pop(); 
+            // 配列の先頭から問題を1つ取り出す（「不安」で末尾に回した問題が後で綺麗に回ってくるようにするため shift を使用）
+            currentQuestion = currentPool.shift(); 
             
             document.getElementById('anki-word').innerText = currentQuestion.en;
             
@@ -518,17 +553,32 @@
             meaning.innerText = currentQuestion.jp;
             meaning.style.visibility = 'hidden';
             
-            document.getElementById('anki-main-btn').innerText = "答えを表示 (Space)";
+            // ボタンエリアを初期状態（答えを表示）に戻す
+            const controls = document.getElementById('anki-controls');
+            controls.innerHTML = `<button id="anki-main-btn" class="anki-action-btn" onclick="handleAnkiShowAnswer()">答えを表示 (Space)</button>`;
         }
 
-        function handleAnkiAction() {
-            if (!isMeaningRevealed) {
-                document.getElementById('anki-meaning').style.visibility = 'visible';
-                document.getElementById('anki-main-btn').innerText = "次の単語へ (Enter)";
-                isMeaningRevealed = true;
-            } else {
-                initAnkiQuestion();
+        // 「答えを表示」を押したときの処理
+        function handleAnkiShowAnswer() {
+            document.getElementById('anki-meaning').style.visibility = 'visible';
+            isMeaningRevealed = true;
+
+            // ボタンエリアを「覚えた」「不安…」の2つに差し替える
+            const controls = document.getElementById('anki-controls');
+            controls.innerHTML = `
+                <button class="anki-action-btn anki-btn-danger" onclick="handleAnkiChoice(false)">不安… (Backspace)</button>
+                <button class="anki-action-btn anki-btn-success" onclick="handleAnkiChoice(true)">覚えた！ (Enter)</button>
+            `;
+        }
+
+        // 「覚えた（true）」または「不安（false）」を選んだときの処理
+        function handleAnkiChoice(isKnown) {
+            if (!isKnown) {
+                // 不安な場合は現在の問題プールの「末尾」に再度追加する
+                currentPool.push(currentQuestion);
             }
+            // 次の問題へ
+            initAnkiQuestion();
         }
 
         /* ==========================================
@@ -545,7 +595,7 @@
                     showSessionClear("COMPLETE!!", `おめでとうございます！<br>「${currentUnitKey}」の全 ${originalPoolLength} 問を完全制覇しました！`);
                 } else {
                     reviewList = []; 
-                    showSessionClear("弱点克服成功！", "復習リストの間混ざった問題をすべてクリアしました！");
+                    showSessionClear("弱点克服成功！", "復習リストの間違えた問題をすべてクリアしました！");
                 }
                 return;
             }
@@ -636,7 +686,7 @@
         }
 
         /* ==========================================
-           ▼ 共通・キーボード制御
+           ▼ 共通・キーボード制御（修正部分）
         ========================================== */
         function backToHome() {
             if (timer) clearInterval(timer);
@@ -653,12 +703,21 @@
         window.addEventListener('keydown', function(e) {
             const ankiScreen = document.getElementById('anki-screen');
             if (ankiScreen.classList.contains('active')) {
-                if (e.code === "Space" && !isMeaningRevealed) {
-                    e.preventDefault();
-                    handleAnkiAction();
-                } else if (e.code === "Enter" && isMeaningRevealed) {
-                    e.preventDefault();
-                    handleAnkiAction();
+                if (!isMeaningRevealed) {
+                    // 意味が表示されていないとき：Spaceで表示
+                    if (e.code === "Space") {
+                        e.preventDefault();
+                        handleAnkiShowAnswer();
+                    }
+                } else {
+                    // 意味が表示されているとき：Enterで「覚えた」、Backspaceで「不安」
+                    if (e.code === "Enter") {
+                        e.preventDefault();
+                        handleAnkiChoice(true);
+                    } else if (e.code === "Backspace") {
+                        e.preventDefault();
+                        handleAnkiChoice(false);
+                    }
                 }
             }
         });
