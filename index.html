@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英検5級特訓 - Stoic Master Ultimate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #deff9a;
+            --primary: #38bdf8;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --text: #f8fafc;
+            --gold: #fbbf24;
+        }
+
+        * { box-sizing: border-box; font-family: 'Urbanist', 'Helvetica Neue', Arial, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .screen {
+            width: 100%;
+            max-width: 600px;
+            padding: 40px;
+            text-align: center;
+            display: none;
+        }
+
+        .screen.active { display: block; }
+
+        /* --- HOME SCREEN --- */
+        h1 { font-size: 2.5rem; margin-bottom: 5px; color: var(--accent); }
+        .subtitle { opacity: 0.7; margin-bottom: 25px; font-size: 0.9rem; }
+        
+        .mode-selector {
+            display: flex;
+            background: #020617;
+            padding: 6px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .mode-tab {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #64748b;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .mode-tab.active[data-mode="anki"] { background: var(--primary); color: #000; }
+        .mode-tab.active[data-mode="test"] { background: var(--danger); color: #fff; }
+
+        .section-title { text-align: left; font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;}
+
+        .unit-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .unit-btn {
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.05);
+            color: var(--text);
+            padding: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        .unit-btn::after {
+            content: '→';
+            opacity: 0.5;
+            transition: transform 0.2s;
+        }
+        .unit-btn:hover { transform: translateX(4px); }
+        .unit-btn.mode-anki:hover { border-color: var(--primary); background: rgba(56, 189, 248, 0.05); }
+        .unit-btn.mode-test:hover { border-color: var(--danger); background: rgba(255, 71, 87, 0.05); }
+        .unit-btn:hover::after { transform: translateX(3px); opacity: 1; }
+
+        /* バッジ表示用の汎用スタイル */
+        .status-badges {
+            display: flex;
+            gap: 6px;
+            margin-right: auto;
+            margin-left: 15px;
+        }
+        .badge-clear-indicator {
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+        .badge-clear-anki {
+            color: var(--primary);
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .badge-clear-test {
+            color: var(--success);
+            background: rgba(46, 213, 115, 0.15);
+            border: 1px solid rgba(46, 213, 115, 0.3);
+        }
+
+        /* テストクリア時の発光エフェクト */
+        .unit-btn.cleared-test {
+            border-color: var(--success) !important;
+            animation: pulse-glow 2s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px rgba(46, 213, 115, 0.1); border-color: rgba(46, 213, 115, 0.4); }
+            100% { box-shadow: 0 0 12px rgba(46, 213, 115, 0.4); border-color: var(--success); }
+        }
+
+        /* 復習ボタン専用スタイル */
+        .review-btn {
+            background: #2e1015 !important;
+            border: 1px solid var(--danger) !important;
+            box-shadow: 0 0 10px rgba(255, 71, 87, 0.15);
+        }
+        .review-btn:hover {
+            background: #4c1d24 !important;
+        }
+
+        /* --- COMMON UI COMPONENTS --- */
+        .mode-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; margin-bottom: 15px; }
+        .badge-anki { background: rgba(56, 189, 248, 0.1); color: var(--primary); }
+        .badge-test { background: rgba(255, 71, 87, 0.1); color: var(--danger); }
+        .badge-review { background: rgba(255, 71, 87, 0.2); color: #fda4af; border: 1px solid var(--danger); }
+        
+        .progress-counter { font-size: 0.9rem; color: #94a3b8; font-weight: bold; background: #020617; padding: 4px 12px; border-radius: 10px; }
+
+        .word-display { font-size: 3.5rem; font-weight: 700; margin-bottom: 40px; min-height: 90px; display: flex; justify-content: center; align-items: center; letter-spacing: 1px; text-transform: none; }
+        
+        /* --- ANKI SCREEN --- */
+        .anki-meaning { font-size: 1.8rem; color: var(--accent); margin-bottom: 50px; min-height: 40px; visibility: hidden; }
+        .anki-action-btn {
+            width: 100%; background: var(--card); border: 2px solid #334155; color: var(--text);
+            padding: 18px; border-radius: 12px; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; font-weight: bold;
+        }
+        .anki-action-btn:hover { border-color: var(--primary); background: #334155; }
+
+        /* --- TEST SCREEN --- */
+        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold; align-items: center; }
+        .combo-count { color: var(--success); font-size: 1.5rem; }
+
+        .timer-track { width: 100%; height: 6px; background: #334155; border-radius: 3px; margin-bottom: 40px; }
+        .timer-bar { width: 100%; height: 100%; background: var(--danger); border-radius: 3px; transition: width 0.1s linear; }
+
+        .choice-grid { display: grid; gap: 12px; }
+        .choice-btn {
+            background: var(--card); border: 2px solid #334155; color: var(--text);
+            padding: 18px; border-radius: 12px; cursor: pointer; font-size: 1.1rem; transition: all 0.2s; text-align: left; padding-left: 20px;
+        }
+        .choice-btn:hover { border-color: var(--danger); background: #334155; }
+
+        /* --- OVERLAY / HEADER --- */
+        .nav-header { text-align: left; margin-bottom: 20px; }
+        .back-btn { background: none; border: none; color: #64748b; cursor: pointer; font-size: 1rem; padding: 0; }
+        .back-btn:hover { color: var(--text); }
+
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.98);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            visibility: hidden; opacity: 0; transition: 0.3s; z-index: 100; padding: 20px;
+        }
+        .overlay.show { visibility: visible; opacity: 1; }
+        
+        .overlay h2.gameover-title { color: var(--danger); font-size: 3rem; margin: 0 0 10px 0; }
+        .overlay h2.clear-title { color: var(--success); font-size: 3.5rem; margin: 0 0 10px 0; text-shadow: 0 0 20px rgba(46,213,115,0.4); }
+        
+        .overlay p { font-size: 1.2rem; margin: 10px 0; text-align: center; }
+        .retry-btn {
+            background: var(--text); color: #000; border: none; padding: 15px 40px;
+            font-size: 1.1rem; border-radius: 30px; cursor: pointer; font-weight: bold; margin-top: 20px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="home-screen" class="screen active">
+        <h1>英検5級 <span>Stoic</span></h1>
+        <p class="subtitle">単語特訓シリーズ</p>
+        
+        <div class="mode-selector">
+            <button class="mode-tab active" data-mode="anki" onclick="setMode('anki')">暗記モード</button>
+            <button class="mode-tab" data-mode="test" onclick="setMode('test')">テストモード</button>
+        </div>
+
+        <div class="section-title">チャレンジ単元を選択</div>
+        <div class="unit-grid" id="unit-buttons"></div>
+    </div>
+
+    <div id="anki-screen" class="screen">
+        <div class="nav-header">
+            <button class="back-btn" onclick="backToHome()">← ホームに戻る</button>
+        </div>
+        <div class="stats">
+            <div class="mode-badge badge-anki">暗記モード</div>
+            <div id="anki-unit-name" style="opacity: 0.6; font-size: 0.9rem;">PART</div>
+            <div id="anki-progress" class="progress-counter">残り 0 / 0 問</div>
+        </div>
+        <div id="anki-word" class="word-display">Word</div>
+        <div id="anki-meaning" class="anki-meaning">意味</div>
+        <button id="anki-main-btn" class="anki-action-btn" onclick="handleAnkiAction()">答えを表示 (Space)</button>
+    </div>
+
+    <div id="challenge-screen" class="screen">
+        <div class="nav-header">
+            <button class="back-btn" onclick="backToHome()">← ギブアップ</button>
+        </div>
+        <div class="stats">
+            <div id="test-mode-badge" class="mode-badge badge-test">テストモード (5秒制限・一撃死)</div>
+            <div id="test-unit-name" style="opacity: 0.6; font-size: 0.9rem;">PART</div>
+            <div id="test-progress" class="progress-counter">残り 0 / 0 問</div>
+        </div>
+        <div class="stats" style="margin-bottom: 10px;">
+            <div>COMBO: <span id="combo" class="combo-count">0</span></div>
+        </div>
+        <div class="timer-track">
+            <div id="timer-bar" class="timer-bar"></div>
+        </div>
+        <div id="question-word" class="word-display">Word</div>
+        <div class="choice-grid">
+            <button class="choice-btn" onclick="handleAnswer(0)" id="c0">-</button>
+            <button class="choice-btn" onclick="handleAnswer(1)" id="c1">-</button>
+            <button class="choice-btn" onclick="handleAnswer(2)" id="c2">-</button>
+            <button class="choice-btn" onclick="handleAnswer(3)" id="c3">-</button>
+        </div>
+    </div>
+
+    <div id="gameover-overlay" class="overlay">
+        <h2 id="overlay-title" class="gameover-title">GAME OVER</h2>
+        <p id="gameover-msg">ミスまたはタイムアップです</p>
+        <div id="correct-info" style="margin-top: 10px; font-size: 1.4rem; color: var(--accent); font-weight: bold;"></div>
+        <div id="final-combo-info" style="margin-top: 10px; color: #64748b;"></div>
+        <button class="retry-btn" onclick="backToHome()">ホームに戻る</button>
+    </div>
+
+    <script>
+        const wordData = {
+            "PART 1: 基礎単語①": [
+                {en: "I", jp: "わたしは"}, {en: "my", jp: "わたしの"}, {en: "me", jp: "わたしを・に・が"}, {en: "mine", jp: "わたしの（もの）"},
+                {en: "you", jp: "あなたは"}, {en: "your", jp: "あなたの"}, {en: "he", jp: "彼は"}, {en: "his", jp: "彼の"},
+                {en: "she", jp: "彼女は"}, {en: "her", jp: "彼女の"}, {en: "it", jp: "それは"}, {en: "we", jp: "わたしたちは"},
+                {en: "what", jp: "何・どんな"}, {en: "which", jp: "どちら・どの"}, {en: "who", jp: "だれ"}, {en: "when", jp: "いつ"},
+                {en: "where", jp: "どこで"}, {en: "why", jp: "なぜ"}, {en: "how", jp: "どうやって・どのくらい"}, {en: "can", jp: "～できる"}
+            ],
+            "PART 2: 基礎単語②": [
+                {en: "every", jp: "毎～"}, {en: "all", jp: "すべて"}, {en: "many", jp: "たくさんの"}, {en: "spring", jp: "春"},
+                {en: "summer", jp: "夏"}, {en: "autumn", jp: "秋"}, {en: "winter", jp: "冬"}, {en: "Sunday", jp: "日曜日"},
+                {en: "Monday", jp: "月曜日"}, {en: "Tuesday", jp: "火曜日"}, {en: "Wednesday", jp: "水曜日"}, {en: "Thursday", jp: "木曜日"},
+                {en: "Friday", jp: "金曜日"}, {en: "Saturday", jp: "土曜日"}, {en: "January", jp: "1月"}, {en: "February", jp: "2月"},
+                {en: "today", jp: "今日"}, {en: "tomorrow", jp: "明日"}, {en: "yesterday", jp: "昨日"}, {en: "time", jp: "時間"}
+            ],
+            "PART 3: 動詞・名詞①": [
+                {en: "ask", jp: "たずねる"}, {en: "buy", jp: "買う"}, {en: "clean", jp: "掃除する"}, {en: "close", jp: "閉める"},
+                {en: "cook", jp: "料理する"}, {en: "come", jp: "来る"}, {en: "dance", jp: "おどる"}, {en: "do", jp: "～をする"},
+                {en: "drink", jp: "飲む"}, {en: "eat", jp: "食べる"}, {en: "go", jp: "行く"}, {en: "have", jp: "持っている"},
+                {en: "know", jp: "知っている"}, {en: "like", jp: "好きだ"}, {en: "look", jp: "見る"}, {en: "make", jp: "作る"},
+                {en: "play", jp: "～をする"}, {en: "read", jp: "読む"}, {en: "run", jp: "走る"}, {en: "write", jp: "書く"}
+            ],
+            "PART 4: 名詞②": [
+                {en: "house", jp: "家"}, {en: "room", jp: "部屋"}, {en: "door", jp: "ドア"}, {en: "desk", jp: "机"},
+                {en: "chair", jp: "いす"}, {en: "clock", jp: "時計"}, {en: "computer", jp: "コンピュータ"}, {en: "pen", jp: "ペン"},
+                {en: "pencil", jp: "えんぴつ"}, {en: "bag", jp: "かばん"}, {en: "hat", jp: "ぼうし"}, {en: "T-shirt", jp: "Tシャツ"},
+                {en: "friend", jp: "友達"}, {en: "baby", jp: "赤ちゃん"}, {en: "teacher", jp: "先生"}, {en: "doctor", jp: "医者"},
+                {en: "city", jp: "市"}, {en: "park", jp: "公園"}, {en: "station", jp: "駅"}, {en: "ticket", jp: "切符"}
+            ],
+            "PART 5: 名詞③": [
+                {en: "animal", jp: "動物"}, {en: "panda", jp: "パンダ"}, {en: "pig", jp: "ぶた"}, {en: "horse", jp: "馬"},
+                {en: "cat", jp: "ねこ"}, {en: "dog", jp: "犬"}, {en: "bird", jp: "鳥"}, {en: "fish", jp: "魚"},
+                {en: "tree", jp: "木"}, {en: "flower", jp: "花"}, {en: "school", jp: "学校"}, {en: "math", jp: "数学"},
+                {en: "science", jp: "理科"}, {en: "homework", jp: "宿題"}, {en: "test", jp: "テスト"}, {en: "eye", jp: "目"},
+                {en: "sport", jp: "スポーツ"}, {en: "soccer", jp: "サッカー"}, {en: "tennis", jp: "テニス"}, {en: "piano", jp: "ピアノ"}
+            ],
+            "PART 6: 形容詞・副詞①": [
+                {en: "sky", jp: "空"}, {en: "sea", jp: "海"}, {en: "weather", jp: "天気"}, {en: "world", jp: "世界"},
+                {en: "cold", jp: "寒い"}, {en: "hot", jp: "熱い"}, {en: "good", jp: "良い"}, {en: "bad", jp: "悪い"},
+                {en: "new", jp: "新しい"}, {en: "old", jp: "古い"}, {en: "big", jp: "大きい"}, {en: "small", jp: "小さい"},
+                {en: "beautiful", jp: "美しい"}, {en: "favorite", jp: "一番好きな"}, {en: "now", jp: "いま"}, {en: "always", jp: "いつも"},
+                {en: "sometimes", jp: "ときどき"}, {en: "often", jp: "よく"}, {en: "fast", jp: "速く"}, {en: "together", jp: "一緒に"}
+            ],
+            "PART 7: 熟語・前置詞": [
+                {en: "well", jp: "上手に・よく"}, {en: "and", jp: "そして"}, {en: "but", jp: "しかし"}, {en: "after", jp: "～の後に"},
+                {en: "before", jp: "～の前に"}, {en: "for", jp: "～のために"}, {en: "on", jp: "～の上に"}, {en: "in", jp: "～の中に"},
+                {en: "from", jp: "～から"}, {en: "to", jp: "～へ"}, {en: "with", jp: "～と一緒に"}, {en: "near", jp: "～の近くに"},
+                {en: "come to ~", jp: "どこどこに来る"}, {en: "come from ~", jp: "～出身です"}, {en: "get up", jp: "起きる"}, {en: "go home", jp: "帰宅する"},
+                {en: "listen to ~", jp: "を聞く"}, {en: "look at ~", jp: "を見る"}, {en: "take a picture", jp: "写真を撮る"}, {en: "of course", jp: "もちろん"}
+            ]
+        };
+
+        let selectedMode = 'anki'; 
+        let currentPool = [];     
+        let originalPoolLength = 0; 
+        let currentQuestion = null;
+        let currentUnitKey = "";   
+        
+        // 状態管理用オブジェクト（ブラウザのタブを閉じたら完全にリセットされる変数）
+        let clearedAnkiUnits = []; // 暗記モードでクリアした単元リスト
+        let clearedUnits = [];     // テストモードでクリアした単元リスト
+        let reviewList = [];       // 間違えた問題を保存する復習リスト
+        let isReviewMode = false;  
+
+        // 暗記用状態
+        let isMeaningRevealed = false;
+
+        // テスト用状態
+        let combo = 0;
+        let timer = null;
+        const TIME_LIMIT = 5000;
+
+        // ホーム画面のボタン生成・更新関数
+        function renderUnitButtons() {
+            const unitContainer = document.getElementById('unit-buttons');
+            unitContainer.innerHTML = ""; 
+
+            // 1. 復習リストが1件以上あれば最上部に表示
+            if (reviewList.length > 0) {
+                const rBtn = document.createElement('button');
+                rBtn.className = 'unit-btn review-btn';
+                rBtn.innerHTML = `<span>🚨 【復習】間違えた問題 (${reviewList.length}語)</span>`;
+                rBtn.onclick = () => startReviewSession();
+                unitContainer.appendChild(rBtn);
+            }
+
+            // 2. 通常の単元ボタンを描写
+            Object.keys(wordData).forEach(key => {
+                const btn = document.createElement('button');
+                btn.id = `btn-${key}`;
+                btn.innerText = key;
+                
+                let classes = `unit-btn mode-${selectedMode}`;
+                
+                // テストモードクリア時は発光エフェクト
+                if (clearedUnits.includes(key)) {
+                    classes += ' cleared-test'; 
+                }
+                btn.className = classes;
+
+                // バッジ格納エリアの作成
+                const badgeContainer = document.createElement('div');
+                badgeContainer.className = 'status-badges';
+
+                if (clearedAnkiUnits.includes(key)) {
+                    const ankiBadge = document.createElement('span');
+                    ankiBadge.className = 'badge-clear-indicator badge-clear-anki';
+                    ankiBadge.innerText = '✓ ANKI';
+                    badgeContainer.appendChild(ankiBadge);
+                }
+                if (clearedUnits.includes(key)) {
+                    const testBadge = document.createElement('span');
+                    testBadge.className = 'badge-clear-indicator badge-clear-test';
+                    testBadge.innerText = '👑 TEST';
+                    badgeContainer.appendChild(testBadge);
+                }
+                btn.appendChild(badgeContainer);
+                
+                btn.onclick = () => startSession(key);
+                unitContainer.appendChild(btn);
+            });
+        }
+
+        // モード変更
+        function setMode(mode) {
+            selectedMode = mode;
+            document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`.mode-tab[data-mode="${mode}"]`).classList.add('active');
+            renderUnitButtons();
+        }
+
+        // 配列シャッフル関数
+        function shuffle(array) {
+            let shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // セッション開始
+        function startSession(key) {
+            isReviewMode = false;
+            currentUnitKey = key;
+            currentPool = shuffle(wordData[key]);
+            originalPoolLength = currentPool.length;
+            
+            if (selectedMode === 'anki') {
+                document.getElementById('anki-unit-name').innerText = key;
+                showScreen('anki-screen');
+                initAnkiQuestion();
+            } else {
+                document.getElementById('test-unit-name').innerText = key;
+                document.getElementById('test-mode-badge').className = "mode-badge badge-test";
+                document.getElementById('test-mode-badge').innerText = "テストモード (5秒制限・一撃死)";
+                combo = 0;
+                document.getElementById('combo').innerText = combo;
+                showScreen('challenge-screen');
+                nextTestQuestion();
+            }
+        }
+
+        // 復習セッション開始
+        function startReviewSession() {
+            isReviewMode = true;
+            currentUnitKey = "REVIEW_LIST";
+            currentPool = shuffle(reviewList);
+            originalPoolLength = currentPool.length;
+
+            document.getElementById('test-unit-name').innerText = "弱点克服特訓";
+            document.getElementById('test-mode-badge').className = "mode-badge badge-review";
+            document.getElementById('test-mode-badge').innerText = "復習モード (5秒制限・一撃死)";
+            combo = 0;
+            document.getElementById('combo').innerText = combo;
+            showScreen('challenge-screen');
+            nextTestQuestion();
+        }
+
+        // 間違えた問題を復習リストに追加（重複なし）
+        function addToReviewList(wordObj) {
+            const exists = reviewList.some(item => item.en === wordObj.en);
+            if (!exists) {
+                reviewList.push(wordObj);
+            }
+        }
+
+        /* ==========================================
+           ▼ 暗記モード ロジック
+        ========================================== */
+        function initAnkiQuestion() {
+            if (currentPool.length === 0) {
+                if (!clearedAnkiUnits.includes(currentUnitKey)) {
+                    clearedAnkiUnits.push(currentUnitKey); // 暗記クリアリストに登録
+                }
+                showSessionClear("暗記モード完了！", "この単元の全単語をチェックしました。次はテストモードに挑戦してみましょう！");
+                return;
+            }
+
+            document.getElementById('anki-progress').innerText = `残り ${currentPool.length} / ${originalPoolLength} 問`;
+
+            isMeaningRevealed = false;
+            currentQuestion = currentPool.pop(); 
+            
+            document.getElementById('anki-word').innerText = currentQuestion.en;
+            
+            const meaning = document.getElementById('anki-meaning');
+            meaning.innerText = currentQuestion.jp;
+            meaning.style.visibility = 'hidden';
+            
+            document.getElementById('anki-main-btn').innerText = "答えを表示 (Space)";
+        }
+
+        function handleAnkiAction() {
+            if (!isMeaningRevealed) {
+                document.getElementById('anki-meaning').style.visibility = 'visible';
+                document.getElementById('anki-main-btn').innerText = "次の単語へ (Enter)";
+                isMeaningRevealed = true;
+            } else {
+                initAnkiQuestion();
+            }
+        }
+
+        /* ==========================================
+           ▼ テストモード ロジック
+        ========================================== */
+        function nextTestQuestion() {
+            if (timer) clearInterval(timer);
+            
+            if (currentPool.length === 0) {
+                if (!isReviewMode) {
+                    if (!clearedUnits.includes(currentUnitKey)) {
+                        clearedUnits.push(currentUnitKey); 
+                    }
+                    showSessionClear("COMPLETE!!", `おめでとうございます！<br>「${currentUnitKey}」の全 ${originalPoolLength} 問を完全制覇しました！`);
+                } else {
+                    reviewList = []; // 復習モード全問クリアでリストを一括消去
+                    showSessionClear("弱点克服成功！", "復習リストの間違えた問題をすべてクリアしました！");
+                }
+                return;
+            }
+
+            document.getElementById('test-progress').innerText = `残り ${currentPool.length} / ${originalPoolLength} 問`;
+
+            currentQuestion = currentPool.pop(); 
+            document.getElementById('question-word').innerText = currentQuestion.en;
+
+            // 選択肢生成の適正化（同じ単元内から優先的にダミーを抽出し、品詞や系統を揃える）
+            let choices = [currentQuestion.jp];
+            
+            // 1. まず同じ単元（または復習元）の単語群からダミーを選ぶ
+            const primarySource = isReviewMode ? reviewList : wordData[currentUnitKey];
+            let attempts = 0;
+            while (choices.length < 4 && choices.length < primarySource.length && attempts < 100) {
+                let randomWord = primarySource[Math.floor(Math.random() * primarySource.length)].jp;
+                if (!choices.includes(randomWord)) choices.push(randomWord);
+                attempts++;
+            }
+            
+            // 2. 万が一同じ単元内だけで4つ埋まらなかった場合のみ、全体プールから補填する
+            if (choices.length < 4) {
+                const allKeys = Object.keys(wordData);
+                while (choices.length < 4) {
+                    let randomKey = allKeys[Math.floor(Math.random() * allKeys.length)];
+                    let randomWord = wordData[randomKey][Math.floor(Math.random() * wordData[randomKey].length)].jp;
+                    if (!choices.includes(randomWord)) choices.push(randomWord);
+                }
+            }
+            
+            choices.sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`c${i}`);
+                btn.innerText = choices[i];
+                btn.dataset.correct = (choices[i] === currentQuestion.jp);
+            }
+
+            // カウントダウン開始
+            const bar = document.getElementById('timer-bar');
+            let start = Date.now();
+            bar.style.width = '100%';
+
+            timer = setInterval(() => {
+                let passed = Date.now() - start;
+                let per = 100 - (passed / TIME_LIMIT * 100);
+                bar.style.width = per + '%';
+
+                if (passed >= TIME_LIMIT) {
+                    clearInterval(timer);
+                    addToReviewList(currentQuestion); 
+                    testGameOver("TIME UP!");
+                }
+            }, 50);
+        }
+
+        function handleAnswer(idx) {
+            const btn = document.getElementById(`c${idx}`);
+            if (btn.dataset.correct === "true") {
+                combo++;
+                document.getElementById('combo').innerText = combo;
+                nextTestQuestion();
+            } else {
+                addToReviewList(currentQuestion); 
+                testGameOver("WRONG!");
+            }
+        }
+
+        function testGameOver(reason) {
+            clearInterval(timer);
+            const titleEl = document.getElementById('overlay-title');
+            titleEl.className = "gameover-title";
+            titleEl.innerText = "GAME OVER";
+
+            document.getElementById('gameover-msg').innerText = reason === "TIME UP!" ? "時間切れです！" : "間違いです！";
+            document.getElementById('correct-info').innerText = `${currentQuestion.en} ＝ ${currentQuestion.jp}`;
+            document.getElementById('final-combo-info').innerText = `記録: ${combo} コンボ`;
+            document.getElementById('gameover-overlay').classList.add('show');
+        }
+
+        function showSessionClear(title, message) {
+            clearInterval(timer);
+            const titleEl = document.getElementById('overlay-title');
+            titleEl.className = "clear-title";
+            titleEl.innerText = title;
+
+            document.getElementById('gameover-msg').innerHTML = message;
+            document.getElementById('correct-info').innerText = "";
+            document.getElementById('final-combo-info').innerText = !isReviewMode && selectedMode === 'test' ? `達成コンボ: ${combo}!` : "";
+            document.getElementById('gameover-overlay').classList.add('show');
+        }
+
+        /* ==========================================
+           ▼ 共通・キーボード制御
+        ========================================== */
+        function backToHome() {
+            if (timer) clearInterval(timer);
+            document.getElementById('gameover-overlay').classList.remove('show');
+            showScreen('home-screen');
+            renderUnitButtons(); 
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        window.addEventListener('keydown', function(e) {
+            const ankiScreen = document.getElementById('anki-screen');
+            if (ankiScreen.classList.contains('active')) {
+                if (e.code === "Space" && !isMeaningRevealed) {
+                    e.preventDefault();
+                    handleAnkiAction();
+                } else if (e.code === "Enter" && isMeaningRevealed) {
+                    e.preventDefault();
+                    handleAnkiAction();
+                }
+            }
+        });
+
+        renderUnitButtons();
+    </script>
+</body>
+</html>
