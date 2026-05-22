@@ -247,6 +247,7 @@
             <div id="anki-progress" class="progress-counter">残り 0 問</div>
         </div>
         <div id="anki-word" class="word-display">Word</div>
+        <div id="anki-pronunciation" style="font-size: 1.3rem; color: #94a3b8; margin-top: -30px; margin-bottom: 35px; letter-spacing: 1px;">[発音]</div>
         <div id="anki-meaning" class="anki-meaning">意味</div>
         
         <div class="anki-btn-container" id="anki-controls">
@@ -746,6 +747,139 @@
         });
 
         renderUnitButtons();
+// ★【修正】暗記モードの画面更新処理（完全版）
+        const originalInitAnkiQuestion = initAnkiQuestion;
+        initAnkiQuestion = function() {
+            originalInitAnkiQuestion();
+            if (currentQuestion && document.getElementById('anki-pronunciation')) {
+                document.getElementById('anki-pronunciation').innerText = getKatakana(currentQuestion.en);
+            }
+        };
+
+        // ★【修正】全単語完全固定マッピング辞書（不自然さゼロ）
+        function getKatakana(en) {
+            let str = en.toLowerCase().trim().replace(/[~?]/g, '');
+            
+            const dictionary = {
+                // PART 1
+                "i": "アイ", "my": "マイ", "me": "ミー", "mine": "マイン",
+                "you": "ユー", "your": "ユア", "he": "ヒー", "his": "ヒズ",
+                "she": "シー", "her": "ハー", "it": "イット", "we": "ウィー",
+                "what": "ワット", "which": "ウィッチ", "who": "フー", "when": "ウェン",
+                "where": "ウェア", "why": "ワイ", "how": "ハウ", "can": "キャン",
+                "do": "ドゥー", "am": "アム", "is": "イズ", "are": "アー",
+                "not": "ノット", "this": "ディス", "that": "ザット", "yes": "イエス",
+                "no": "ノー", "oh": "オゥ", "please": "プリーズ", "thank you": "サンキュー",
+                "welcome": "ウェルカム", "here": "ヒア", "there": "ゼア", "look": "ルック",
+
+                // PART 2
+                "every": "エヴリ", "all": "オール", "many": "メニィ", "spring": "スプリング",
+                "summer": "サマー", "autumn": "オータム", "winter": "ウィンター", "sunday": "サンデイ",
+                "monday": "マンデイ", "tuesday": "チューズデイ", "wednesday": "ウェンズデイ", "thursday": "サーズデイ",
+                "friday": "フライデイ", "saturday": "サタデイ", "january": "ジャニュアリー", "february": "フェブラリー",
+                "today": "トゥデイ", "tomorrow": "トゥモロー", "yesterday": "イエスタデイ", "time": "タイム",
+                "year": "イヤー", "month": "マンス", "week": "ウィーク", "day": "デイ",
+                "morning": "モーニング", "afternoon": "アフタヌーン", "evening": "イヴニング", "night": "ナイト",
+                "clock": "クロック", "hour": "アワー", "o'clock": "オクロック", "now": "ナウ",
+                "then": "ゼン", "often": "オフン", "sometimes": "サムタイムズ", "always": "オールウェイズ",
+                "usually": "ユージュアリー", "again": "アゲイン", "ago": "アゴー", "before": "ビフォー",
+
+                // PART 3
+                "ask": "アスク", "buy": "バイ", "clean": "クリーン", "close": "クローズ",
+                "cook": "クック", "come": "カム", "dance": "ダンス", "drink": "ドリンク",
+                "eat": "イート", "go": "ゴー", "have": "ハヴ", "know": "ノウ",
+                "like": "ライク", "make": "メイク", "play": "プレイ", "read": "リード",
+                "run": "ラン", "write": "ライト", "study": "スタディ", "speak": "スピーク",
+                "talk": "トーク", "sing": "シング", "swim": "スイム", "use": "ユーズ",
+                "wash": "ウォッシュ", "want": "ウォント", "help": "ヘルプ", "open": "オープン",
+                "listen": "リスン", "see": "シー", "watch": "ウォッチ", "meet": "ミート",
+                "live": "リヴ", "work": "ワーク", "walk": "ウォーク", "stop": "ストップ",
+                "stay": "ステイ", "sit": "シット", "stand": "スタンド", "smile": "スマイル",
+                "put": "プット", "take": "テイク", "bring": "ブリング", "show": "ショウ",
+                "tell": "テル", "say": "セイ", "find": "ファインド", "teach": "チーチ",
+                "learn": "ラーン", "enjoy": "エンジョイ", "love": "ラヴ", "think": "シンク",
+                "understand": "アンダスタンド",
+
+                // PART 4
+                "house": "ハウス", "room": "ルーム", "door": "ドア", "desk": "デスク",
+                "chair": "チェアー", "computer": "コンピューター", "pen": "ペン", "pencil": "ペンシル",
+                "bag": "バッグ", "hat": "ハット", "cap": "キャップ", "t-shirt": "ティーシャツ",
+                "shoes": "シューズ", "friend": "フレンド", "baby": "ベイビー", "teacher": "ティーチャー",
+                "doctor": "ドクター", "boy": "ボーイ", "girl": "ガール", "man": "マン",
+                "woman": "ウーマン", "child": "チャイルド", "people": "ピープル", "student": "スチューデント",
+                "father": "ファザー", "mother": "マザー", "parent": "ペアレント", "parents": "ペアレンツ",
+                "brother": "ブラザー", "sister": "シスター", "family": "ファミリー", "grandpa": "グランパ",
+                "grandma": "グランマ", "city": "シティ", "town": "タウン", "park": "パーク",
+                "station": "ステーション", "ticket": "チケット", "store": "ストア", "shop": "ショップ",
+                "hospital": "ホスピタル", "library": "ライブラリー", "museum": "ミュージアム", "zoo": "ズー",
+                "bed": "ベッド", "table": "テーブル", "cup": "カップ", "dish": "ディッシュ",
+                "book": "ブック", "notebook": "ノートブック", "picture": "ピクチャー", "camera": "カメラ",
+                "bike": "バイク", "car": "カー", "bus": "バス", "train": "トレイン",
+
+                // PART 5
+                "animal": "アニマル", "panda": "パンダ", "pig": "ピッグ", "horse": "ホース",
+                "cat": "キャット", "dog": "ドッグ", "bird": "バード", "fish": "フィッシュ",
+                "bear": "ベアー", "elephant": "エレファント", "monkey": "モンキー", "rabbit": "ラビット",
+                "lion": "ライオン", "tree": "ツリー", "flower": "フラワー", "nature": "ネイチャー",
+                "school": "スクール", "class": "クラス", "classroom": "クラスルーム", "math": "マス",
+                "science": "サイエンス", "music": "ミュージック", "art": "アート", "history": "ヒストリー",
+                "english": "イングリッシュ", "japanese": "ジャパニーズ", "homework": "ホームワーク", "test": "テスト",
+                "lesson": "レッスン", "club": "クラブ", "eye": "アイ", "ear": "イヤー",
+                "mouth": "マウス", "hand": "ハンド", "arm": "アーム", "leg": "レッグ",
+                "foot": "フット", "head": "ヘッド", "hair": "ヘア", "face": "フェイス",
+                "sport": "スポーツ", "soccer": "サッカー", "tennis": "テニス", "basketball": "バスケットボール",
+                "baseball": "ベースボール", "volleyball": "バレーボール", "swimming": "スイミング", "running": "ランニング",
+                "piano": "ピアノ", "guitar": "ギター", "song": "ソング", "game": "ゲーム",
+                "food": "フード", "breakfast": "ブレックファスト", "lunch": "ランチ", "dinner": "ディナー",
+
+                // PART 6
+                "sky": "スカイ", "sea": "シー", "weather": "ウェザー", "world": "ワールド",
+                "cold": "コールド", "hot": "ホット", "warm": "ウォーム", "cool": "クール",
+                "sunny": "サニー", "rainy": "レイニー", "cloudy": "クラウディ", "snowy": "スノーウィ",
+                "fine": "ファイン", "good": "グッド", "bad": "バッド", "nice": "ナイス",
+                "great": "グレイト", "beautiful": "ビューティフル", "popular": "ポピュラー", "famous": "フェイマス",
+                "favorite": "フェイバリット", "happy": "ハッピー", "sad": "サド", "tired": "タイアード",
+                "busy": "ビズィー", "hungry": "ハングリー", "thirsty": "サースティ", "new": "ニュー",
+                "old": "オールド", "big": "ビッグ", "large": "ラージ", "small": "スモール",
+                "little": "リトル", "long": "ロング", "short": "ショート", "tall": "トール",
+                "high": "ハイ", "low": "ロー", "fast": "ファスト", "slow": "スロウ",
+                "early": "アーリー", "late": "レイト", "easy": "イージー", "difficult": "ディフィカルト",
+                "hard": "ハード", "kind": "カインド", "interesting": "インタレスティング", "fun": "ファン",
+                "together": "トゥギャザー", "well": "ウェル", "very": "ヴェリー", "much": "マッチ",
+                "too": "トゥー", "only": "オンリー", "really": "リアリー", "maybe": "メイビー",
+
+                // PART 7 (熟語・前置詞)
+                "and": "アンド", "but": "バット", "or": "オア", "so": "ソー", "because": "ビコーズ",
+                "about": "アバウト", "after": "アフター", "around": "アラウンド", "at": "アット",
+                "by": "バイ", "for": "フォー", "from": "フロム", "in": "イン", "of": "オブ",
+                "on": "オン", "to": "トゥー", "under": "アンダー", "with": "ウィズ", "near": "ニア",
+                "between": "ビトウィーン",
+                "come to": "カム トゥー", "come from": "カム フロム", "go to": "ゴー トゥー",
+                "go home": "ゴー ホーム", "go to bed": "ゴー トゥー ベッド", "go out": "ゴー アウト",
+                "get up": "ゲット アップ", "get to": "ゲット トゥー", "listen to": "リスン トゥー",
+                "look at": "ルック アット", "look for": "ルック フォー", "take a picture": "テイク ア ピクチャー",
+                "talk with": "トーク ウィズ", "speak English": "スピーク イングリーシュ", "wash hands": "ウォッシュ ハンズ",
+                "do homework": "ドゥー ホームワーク", "play soccer": "プレイ サッカー", "play the piano": "プレイ ザ ピアノ",
+                "of course": "オブ コース", "good morning": "グッド モーニング", "good afternoon": "グッド アフタヌーン",
+                "good evening": "グッド イーヴニング", "good bye": "グッド バイ", "pardon me": "パードゥン ミー",
+                "excuse me": "エクスキューズ ミー", "you're welcome": "ユーア ウェルカム", "how are you?": "ハウ アー ユー",
+                "here you are": "ヒア ユー アー"
+            };
+
+            // 完全一致するものがあればそれを返す
+            if (dictionary[str]) return dictionary[str];
+
+            // 熟語内の部分一致（大文字小文字の揺れ対策など）
+            let lowerEn = en.toLowerCase();
+            for (let key in dictionary) {
+                if (lowerEn.includes(key)) {
+                    return dictionary[key];
+                }
+            }
+
+            // 万が一見つからなかった場合の安全用
+            return en;
+        }
     </script>
 </body>
 </html>
